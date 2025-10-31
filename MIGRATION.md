@@ -147,11 +147,11 @@ src/
    - Safari: App Store Connect
 
 3. **Alte Repositories archivieren**
-   ```bash
-   cd ../chromium && git tag v1.1.0-final && git push --tags
-   cd ../firefox && git tag v1.1.0-final && git push --tags
-   cd ../safari && git tag v1.1.0-final && git push --tags
-   ```
+
+   Die alten Repositories wurden bereits archiviert und mit Deprecation-Hinweisen versehen:
+   - [openpims/chromium](https://github.com/openpims/chromium) - ⚠️ DEPRECATED
+   - [openpims/firefox](https://github.com/openpims/firefox) - ⚠️ DEPRECATED
+   - [openpims/safari](https://github.com/openpims/safari) - ⚠️ DEPRECATED
 
 ## Rollback-Plan
 
