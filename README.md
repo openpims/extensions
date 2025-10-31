@@ -320,7 +320,7 @@ Die Extension nutzt `chrome.alarms` API für zuverlässige tägliche Rotation um
 
 ## Lizenz
 
-MIT - Siehe LICENSE Datei
+Apache 2.0 - Siehe LICENSE Datei
 
 ## Autor
 
