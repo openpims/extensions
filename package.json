@@ -1,0 +1,32 @@
+{
+  "name": "openpims-extension",
+  "version": "2.0.0",
+  "description": "OpenPIMS Browser Extension - Centralized consent management for digital self-determination",
+  "author": "Stefan Böck",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:chrome": "wxt --browser chrome",
+    "dev:firefox": "wxt --browser firefox",
+    "dev:safari": "wxt --browser safari",
+    "build": "wxt build",
+    "build:chrome": "wxt build --browser chrome",
+    "build:firefox": "wxt build --browser firefox",
+    "build:safari": "wxt build --browser safari",
+    "zip": "wxt zip",
+    "zip:chrome": "wxt zip --browser chrome",
+    "zip:firefox": "wxt zip --browser firefox",
+    "zip:safari": "wxt zip --browser safari",
+    "compile": "tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.254",
+    "@vitest/ui": "^1.2.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0",
+    "wxt": "^0.18.0"
+  }
+}

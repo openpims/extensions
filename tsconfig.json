@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["chrome", "wxt/browser"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "~/*": ["./"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "entrypoints/**/*",
+    "wxt.config.ts",
+    ".wxt/types/**/*.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".output"]
+}

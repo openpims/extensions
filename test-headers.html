@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenPIMS Header Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #results {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .header-found {
+            background: #d4edda;
+            color: #155724;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        .header-missing {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 5px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenPIMS Header Test</h1>
+
+    <p>Diese Seite testet, ob die OpenPIMS Headers korrekt gesendet werden.</p>
+
+    <button onclick="testPostmanEcho()">Test mit Postman Echo</button>
+    <button onclick="testHttpBin()">Test mit httpbin.org</button>
+    <button onclick="testLocal()">Test mit lokalem Server</button>
+
+    <div id="results"></div>
+
+    <script>
+        function displayResults(data, source) {
+            const resultsDiv = document.getElementById('results');
+            let html = `<h2>Test mit ${source}:</h2>\n`;
+
+            // Check for X-OpenPIMS header
+            const headers = data.headers || data;
+            let foundXOpenPIMS = false;
+            let foundUserAgent = false;
+
+            html += '<h3>Alle empfangenen Headers:</h3>\n';
+            html += JSON.stringify(headers, null, 2) + '\n\n';
+
+            // Check specifically for our headers
+            for (const [key, value] of Object.entries(headers)) {
+                if (key.toLowerCase() === 'x-openpims') {
+                    foundXOpenPIMS = true;
+                    html += `<div class="header-found">✅ X-OpenPIMS gefunden: ${value}</div>`;
+                }
+                if (key.toLowerCase() === 'user-agent' && value.includes('OpenPIMS')) {
+                    foundUserAgent = true;
+                    html += `<div class="header-found">✅ User-Agent mit OpenPIMS gefunden: ${value}</div>`;
+                }
+            }
+
+            if (!foundXOpenPIMS) {
+                html += '<div class="header-missing">❌ X-OpenPIMS Header NICHT gefunden!</div>';
+            }
+            if (!foundUserAgent) {
+                html += '<div class="header-missing">❌ OpenPIMS im User-Agent NICHT gefunden!</div>';
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+
+        async function testPostmanEcho() {
+            try {
+                const response = await fetch('https://postman-echo.com/headers');
+                const data = await response.json();
+                displayResults(data, 'Postman Echo');
+            } catch (error) {
+                document.getElementById('results').innerHTML =
+                    '<div class="header-missing">Fehler: ' + error.message + '</div>';
+            }
+        }
+
+        async function testHttpBin() {
+            try {
+                const response = await fetch('https://httpbin.org/headers');
+                const data = await response.json();
+                displayResults(data, 'httpbin.org');
+            } catch (error) {
+                document.getElementById('results').innerHTML =
+                    '<div class="header-missing">Fehler: ' + error.message + '</div>';
+            }
+        }
+
+        async function testLocal() {
+            try {
+                // Test mit lokalem Server (falls vorhanden)
+                const response = await fetch('http://localhost:8080/headers');
+                const data = await response.json();
+                displayResults(data, 'Lokaler Server');
+            } catch (error) {
+                document.getElementById('results').innerHTML =
+                    '<div class="header-missing">Kein lokaler Server auf Port 8080 gefunden. Starten Sie einen Echo-Server.</div>';
+            }
+        }
+
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                console.log('Auto-testing headers...');
+                testPostmanEcho();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

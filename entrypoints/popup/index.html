@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenPIMS</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <div class="header">
+            <img src="/icon-48.png" alt="OpenPIMS Logo" class="logo">
+            <h1>OpenPIMS</h1>
+        </div>
+
+        <!-- Error message (at top, directly after header) -->
+        <div id="errorMessage" class="error-message hidden"></div>
+
+        <!-- Loading state -->
+        <div id="loadingContent" class="content">
+            <div class="loading-spinner"></div>
+            <p>Lade...</p>
+        </div>
+
+        <!-- Logged in state -->
+        <div id="loggedInContent" class="content hidden">
+            <div class="status-card">
+                <div class="status-indicator active"></div>
+                <span>Aktiv</span>
+            </div>
+
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="label">Benutzer:</span>
+                    <span id="userEmail" class="value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Server:</span>
+                    <a id="serverUrl" class="value value-link" href="#" target="_blank" rel="noopener noreferrer">-</a>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="syncButton" class="btn btn-primary">
+                    <span class="icon">🔄</span>
+                    Jetzt synchronisieren
+                </button>
+                <button id="logoutButton" class="btn btn-secondary">
+                    Ausloggen
+                </button>
+            </div>
+        </div>
+
+        <!-- Login form -->
+        <div id="loginForm" class="content hidden">
+            <!-- Tab navigation -->
+            <div class="tab-nav">
+                <button class="tab-btn active" data-tab="auto">
+                    <span class="icon">🔄</span>
+                    Login
+                </button>
+                <button class="tab-btn" data-tab="manual">
+                    <span class="icon">⚙️</span>
+                    Manuell
+                </button>
+                <button class="tab-btn tab-btn-accent" data-tab="register">
+                    <span class="icon">🚀</span>
+                    Neu hier?
+                </button>
+            </div>
+
+            <!-- Tab panels -->
+            <div class="tab-panels">
+                <!-- Auto sync panel -->
+                <div class="tab-panel active" data-panel="auto">
+                    <p class="help-text">
+                        Loggen Sie sich zuerst auf Ihrer PIMS-Webseite ein, dann klicken Sie auf Synchronisieren.
+                    </p>
+                    <div class="form-group">
+                        <label for="providerUrl">Server-URL</label>
+                        <input
+                            type="url"
+                            id="providerUrl"
+                            placeholder="https://openpims.de"
+                            value="https://openpims.de"
+                        >
+                    </div>
+                    <button id="autoSyncButton" class="btn btn-primary full-width">
+                        <span class="icon">🔄</span>
+                        Synchronisieren
+                    </button>
+                </div>
+
+                <!-- Manual setup panel -->
+                <div class="tab-panel" data-panel="manual">
+                    <p class="help-text">
+                        Geben Sie Ihre Zugangsdaten manuell ein.
+                    </p>
+
+                    <div class="form-group">
+                        <label for="userId">Benutzer-ID</label>
+                        <input
+                            type="text"
+                            id="userId"
+                            placeholder="z.B. 123"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="token">Token (min. 16 Zeichen)</label>
+                        <input
+                            type="password"
+                            id="token"
+                            placeholder="Ihr geheimer Token"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="domain">Domain</label>
+                        <input
+                            type="text"
+                            id="domain"
+                            placeholder="openpims.de"
+                            value="openpims.de"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <button id="manualSetupButton" class="btn btn-primary full-width">
+                        Manuell einrichten
+                    </button>
+                </div>
+
+                <!-- Register panel -->
+                <div class="tab-panel" data-panel="register">
+                    <div class="register-info">
+                        <h3>Noch kein Account?</h3>
+                        <p class="help-text">
+                            Erstellen Sie in 2 Minuten einen kostenlosen OpenPIMS-Account.
+                        </p>
+
+                        <ul class="benefits-list">
+                            <li>
+                                <span class="benefit-icon">🔒</span>
+                                <span>Zentrale Cookie-Verwaltung</span>
+                            </li>
+                            <li>
+                                <span class="benefit-icon">🌐</span>
+                                <span>Browser-übergreifend synchron</span>
+                            </li>
+                            <li>
+                                <span class="benefit-icon">✓</span>
+                                <span>DSGVO-konform & sicher</span>
+                            </li>
+                            <li>
+                                <span class="benefit-icon">⚡</span>
+                                <span>100% kostenlos</span>
+                            </li>
+                        </ul>
+
+                        <button id="openRegisterButton" class="btn btn-primary full-width">
+                            <span class="icon">🚀</span>
+                            Jetzt registrieren
+                        </button>
+
+                        <p class="hint-text">
+                            Sie werden zu openpims.de weitergeleitet. Nach der Registrierung
+                            kommen Sie hierher zurück und klicken auf "Login" → "Synchronisieren".
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./main.ts" type="module"></script>
+</body>
+</html>

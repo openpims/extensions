@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Documentation for Claude (private)
+CLAUDE.md
+.claude/
+
+# Test analysis files (temporary)
+TEST_*.md
+TEST_*.txt
+TESTING_*.md
+
+# Build outputs
+.output/
+.wxt/
+dist/
+*.zip
+
+# Development
+.env
+.env.local
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.bak
+*~
