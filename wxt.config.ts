@@ -48,14 +48,7 @@ export default defineConfig({
         browser_specific_settings: {
           gecko: {
             id: 'openpims@openpims.de',
-            strict_min_version: '113.0',  // Required for declarativeNetRequest support
-            // Required for new extensions
-            data_collection_permissions: {
-              required: ['storage_content'],
-              storage_content: {
-                description: 'Stores your OpenPIMS authentication credentials and domain rules locally for cookie consent management.'
-              }
-            }
+            strict_min_version: '113.0'  // Required for declarativeNetRequest support
           }
         }
       }
