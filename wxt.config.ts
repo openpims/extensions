@@ -47,7 +47,7 @@ export default defineConfig({
         // Firefox-specific settings
         browser_specific_settings: {
           gecko: {
-            id: 'openpims@openpims.de',
+            id: 'openpims-addon@example.com',  // Must match existing AMO ID
             strict_min_version: '113.0'  // Required for declarativeNetRequest support
           }
         }
