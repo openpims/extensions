@@ -51,9 +51,9 @@ export default defineConfig({
             strict_min_version: '113.0',  // Required for declarativeNetRequest support
             // Required for new extensions
             data_collection_permissions: {
+              required: ['storage_content'],
               storage_content: {
-                description: 'Stores your OpenPIMS authentication credentials and domain rules locally for cookie consent management.',
-                required: ['credentials', 'domain_rules']
+                description: 'Stores your OpenPIMS authentication credentials and domain rules locally for cookie consent management.'
               }
             }
           }
