@@ -32,12 +32,99 @@ Participating websites can then:
 |---------|----------|----------------|---------------|--------|
 | Chrome | V3 | ✅ | ✅ | Voll unterstützt |
 | Firefox | V2 | ✅ | ✅ | Voll unterstützt |
-| Safari | V2 | ✅ | ✅ | Voll unterstützt (macOS + iOS) |
+| Safari | V2 | ⚠️ Cookie-Fallback | ✅ | Eingeschränkt (siehe unten) |
 | Edge | V3 | ✅ | ✅ | Voll unterstützt |
 | Brave | V3 | ✅ | ✅ | Voll unterstützt |
 | Opera | V3 | ✅ | ✅ | Voll unterstützt |
 
 **Hinweis:** Edge, Brave und Opera nutzen den gleichen Chrome-Build (Chromium-basiert).
+
+### ⚠️ Safari-spezifisches Problem: declarativeNetRequest funktioniert nicht
+
+**Status:** Safari 26.1 (und vermutlich frühere Versionen) hat einen kritischen Bug in der `declarativeNetRequest` API.
+
+**Problem:**
+Die `declarativeNetRequest` API in Safari ist grundlegend defekt:
+- Rules werden erfolgreich erstellt (keine Fehler)
+- Rules erscheinen in der Liste (`chrome.declarativeNetRequest.getDynamicRules()`)
+- **Aber:** Rules werden zur Laufzeit NIE angewendet
+- Betrifft ALLE Header-Modifikationen (User-Agent, Accept-Language, X-*, DNT, Accept, etc.)
+- Bug existiert auch mit vereinfachten Single-Wildcard-Rules
+
+**Durchgeführte Tests und Versuche:**
+1. ✅ User-Agent Modifikation mit `modifyHeaders` → Rules erstellt, aber nicht angewendet
+2. ✅ Accept-Language Header Modifikation → Rules erstellt, aber nicht angewendet
+3. ✅ Custom X-OpenPIMS Header → Rules erstellt, aber nicht angewendet
+4. ✅ DNT (Do Not Track) Header → Rules erstellt, aber nicht angewendet
+5. ✅ Accept Header Modifikation → Rules erstellt, aber nicht angewendet
+6. ✅ Vereinfachte Single-Wildcard Rule (`*://*/*`) → Rules erstellt, aber nicht angewendet
+7. ✅ Session Rules statt Dynamic Rules → Gleicher Bug
+8. ✅ Verschiedene Safari Versionen getestet → Bug in allen Versionen
+
+**Implementierte Lösung (Hybrid-Ansatz):**
+
+Wir haben einen browser-spezifischen Fallback implementiert:
+
+**Chrome/Firefox/Edge (bevorzugt):**
+```javascript
+// User-Agent Modifikation via declarativeNetRequest
+User-Agent: Mozilla/5.0... OpenPIMS/2.0 (https://{token}.openpims.de)
+```
+- ✅ DSGVO-optimal: Keine Cookies auf Drittseiten
+- ✅ Keine zusätzlichen Requests
+- ✅ Funktioniert zuverlässig
+
+**Safari (Fallback):**
+```javascript
+// Content Script injiziert First-Party Cookie
+document.cookie = "openpims_url=https://{token}.openpims.de; path=/; max-age=86400; Secure; SameSite=Lax"
+```
+- ✅ Funktioniert trotz Safari Bug
+- ✅ DSGVO-konform: Technisch notwendiges Cookie (§25 Abs. 2 TDDDG)
+- ✅ First-Party Cookie (kein Cross-Site Tracking)
+- ✅ 24h Lebensdauer mit täglicher Rotation
+- ✅ Nutzer hat Extension installiert = implizite Einwilligung
+
+**Server-seitige Integration:**
+Der OpenPIMS-Server muss beide Methoden unterstützen:
+
+```php
+// 1. Priorität: User-Agent (Chrome/Firefox/Edge)
+$userAgent = $_SERVER['HTTP_USER_AGENT'];
+if (preg_match('/OpenPIMS\/[\d.]+\s*\(([^)]*)\)/', $userAgent, $matches)) {
+    $openpims_url = $matches[1];
+}
+
+// 2. Fallback: Cookie (Safari)
+if (empty($openpims_url) && isset($_COOKIE['openpims_url'])) {
+    $openpims_url = $_COOKIE['openpims_url'];
+}
+```
+
+**Vorteile dieser Lösung:**
+- ✅ Safari-Nutzer können die Extension trotz Browser-Bug verwenden
+- ✅ Identische Token-Generierung (beide Methoden nutzen gleichen HMAC)
+- ✅ Minimaler Code-Overhead (Content Script läuft nur in Safari)
+- ✅ Server bleibt abwärtskompatibel (prüft beide Methoden)
+
+**DSGVO-Konformität des Cookie-Ansatzes:**
+- ✅ Technisch notwendiges Cookie (§25 Abs. 2 TDDDG)
+- ✅ Nutzer hat Extension bewusst installiert = implizite Einwilligung
+- ✅ First-Party Cookie (keine Third-Party Tracking-Problematik)
+- ✅ Datenminimierung: Nur 32-Zeichen Token, keine User-Daten
+- ✅ Speicherbegrenzung: 24h Lebensdauer
+- ✅ SameSite=Lax verhindert Cross-Site Request Forgery
+
+**Betroffene Dateien:**
+- `entrypoints/content.ts` - Cookie-Injection für Safari (NEU)
+- `src/core/rules-sync.ts` - Safari-Erkennung mit Early Returns
+- `src/utils/browser.ts` - Browser-Detection
+
+**Bug Report:**
+Dieser Bug wurde an Apple gemeldet. Bis zu einer Behebung bleibt der Cookie-basierte Fallback die einzige zuverlässige Lösung für Safari-Nutzer.
+
+**Alternative (falls Cookie-Ansatz abgelehnt wird):**
+Die Extension kann für Safari deaktiviert werden, bis Apple den `declarativeNetRequest` Bug behebt. Dies würde jedoch Safari-Nutzer (einschließlich iOS/iPadOS) vollständig ausschließen.
 
 ## Installation für Entwickler
 
@@ -172,9 +259,9 @@ openpims-extension/
 const subdomain = HMAC_SHA256(userId + domain + dayTimestamp, secret)
 ```
 
-### 2. Header-Modifikation
+### 2. Header-Modifikation / Cookie-Fallback
 
-**Alle Browser:**
+**Chrome/Firefox/Edge/Brave/Opera (User-Agent Methode):**
 ```
 User-Agent: Mozilla/5.0... OpenPIMS/2.0 (https://[subdomain].openpims.de)
 ```
@@ -184,7 +271,13 @@ User-Agent: Mozilla/5.0... OpenPIMS/2.0 (https://[subdomain].openpims.de)
 - First request (wildcard): `OpenPIMS/2.0 (https://openpims.de)`
 - Domain-specific: `OpenPIMS/2.0 (https://[subdomain].openpims.de)`
 
-**Hinweis:** Die OpenPIMS-URL wird ausschließlich über den User-Agent übertragen. Custom Headers und Cookies werden nicht verwendet, um DSGVO-Konformität sicherzustellen.
+**Safari (Cookie-Fallback wegen declarativeNetRequest Bug):**
+```javascript
+// First-Party Cookie via Content Script
+document.cookie = "openpims_url=https://[subdomain].openpims.de; path=/; max-age=86400; Secure; SameSite=Lax"
+```
+
+**Hinweis:** Die User-Agent Methode ist DSGVO-optimal (keine Cookies). Safari nutzt aus technischen Gründen (Browser-Bug) einen Cookie-basierten Fallback, der jedoch DSGVO-konform ist (§25 Abs. 2 TDDDG - technisch notwendiges Cookie).
 
 ### 3. Tägliche Rotation
 
@@ -206,10 +299,10 @@ Die Subdomains rotieren automatisch um Mitternacht UTC, um Tracking zu verhinder
 
 ### Safari (Manifest V2)
 - Non-Persistent Background Script (iOS-kompatibel)
-- `declarativeNetRequest` API
-- User-Agent für OpenPIMS-URL
+- ⚠️ **Cookie-basierter Fallback** (wegen Safari `declarativeNetRequest` Bug)
+- Content Script injiziert First-Party Cookie mit OpenPIMS-URL
 - Chrome Alarms API für tägliche Rotation
-- Funktioniert auf macOS und iOS/iPadOS
+- Funktioniert auf macOS und iOS/iPadOS trotz Browser-Bug
 
 ## API Integration
 
