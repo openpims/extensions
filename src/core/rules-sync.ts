@@ -22,23 +22,11 @@ export class RuleManagerSync {
   private static domainsWithRules = new Map<string, DomainRuleInfo>();
 
   /**
-   * Get all resource types for the rule
+   * Get resource types for the rule - only main_frame needed
+   * The User-Agent header is only read from the main HTML request by the server
    */
   private static getResourceTypes(): chrome.declarativeNetRequest.ResourceType[] {
-    return [
-      'main_frame',
-      'sub_frame',
-      'stylesheet',
-      'script',
-      'image',
-      'font',
-      'object',
-      'xmlhttprequest',
-      'ping',
-      'media',
-      'websocket',
-      'other'
-    ] as chrome.declarativeNetRequest.ResourceType[];
+    return ['main_frame'] as chrome.declarativeNetRequest.ResourceType[];
   }
 
   /**
@@ -65,6 +53,26 @@ export class RuleManagerSync {
       value: `${navigator.userAgent} OpenPIMS/2.0 (${openpimsUrl})`
     });
 
+    // Safari workaround: Use excludedResourceTypes instead of resourceTypes
+    // Based on ChangeTheHeaders which works in Safari
+    const condition: any = {
+      urlFilter: `*://${domain}/*`
+    };
+
+    // Safari has bugs with resourceTypes array, but excludedResourceTypes works
+    // We exclude everything EXCEPT main_frame
+    const isSafari = import.meta.env.BROWSER === 'safari';
+    if (isSafari) {
+      // Exclude all types except main_frame
+      condition.excludedResourceTypes = [
+        'sub_frame', 'stylesheet', 'script', 'image', 'font',
+        'object', 'xmlhttprequest', 'ping', 'media', 'websocket', 'other'
+      ];
+    } else {
+      // Chrome/Firefox: Use resourceTypes (works fine)
+      condition.resourceTypes = this.getResourceTypes();
+    }
+
     return {
       id: ruleId,
       priority: 100, // Higher priority than wildcard rule
@@ -72,10 +80,7 @@ export class RuleManagerSync {
         type: 'modifyHeaders',
         requestHeaders: headers
       },
-      condition: {
-        urlFilter: `*://${domain}/*`,
-        resourceTypes: this.getResourceTypes()
-      }
+      condition
     };
   }
 
@@ -226,6 +231,18 @@ export class RuleManagerSync {
    * Set not-configured rule
    */
   static async setNotConfiguredRule(): Promise<void> {
+    const condition: any = { urlFilter: '*://*/*' };
+    const isSafari = import.meta.env.BROWSER === 'safari';
+
+    if (isSafari) {
+      condition.excludedResourceTypes = [
+        'sub_frame', 'stylesheet', 'script', 'image', 'font',
+        'object', 'xmlhttprequest', 'ping', 'media', 'websocket', 'other'
+      ];
+    } else {
+      condition.resourceTypes = ['main_frame'] as chrome.declarativeNetRequest.ResourceType[];
+    }
+
     const rule: OpenPIMSRule = {
       id: this.NOT_CONFIGURED_RULE_ID,
       priority: 1,
@@ -237,10 +254,7 @@ export class RuleManagerSync {
           value: `${navigator.userAgent} OpenPIMS/2.0 ()`
         }]
       },
-      condition: {
-        urlFilter: '*://*/*',
-        resourceTypes: ['main_frame'] as chrome.declarativeNetRequest.ResourceType[]
-      }
+      condition
     };
 
     await browser.declarativeNetRequest.updateDynamicRules({
@@ -259,6 +273,18 @@ export class RuleManagerSync {
 
     // Create wildcard rule with just appDomain for FIRST requests to new domains
     // No hash, no user identification - just the OpenPIMS domain
+    const wildcardCondition: any = { urlFilter: '*://*/*' };
+    const isSafari = import.meta.env.BROWSER === 'safari';
+
+    if (isSafari) {
+      wildcardCondition.excludedResourceTypes = [
+        'sub_frame', 'stylesheet', 'script', 'image', 'font',
+        'object', 'xmlhttprequest', 'ping', 'media', 'websocket', 'other'
+      ];
+    } else {
+      wildcardCondition.resourceTypes = this.getResourceTypes();
+    }
+
     const wildcardRule = {
       id: 1,
       priority: 1,
@@ -270,10 +296,7 @@ export class RuleManagerSync {
           value: `${navigator.userAgent} OpenPIMS/2.0 (https://${credentials.appDomain})`
         }]
       },
-      condition: {
-        urlFilter: '*://*/*',
-        resourceTypes: this.getResourceTypes()
-      }
+      condition: wildcardCondition
     };
 
     await browser.declarativeNetRequest.updateDynamicRules({

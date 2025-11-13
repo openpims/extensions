@@ -32,99 +32,67 @@ Participating websites can then:
 |---------|----------|----------------|---------------|--------|
 | Chrome | V3 | ✅ | ✅ | Voll unterstützt |
 | Firefox | V2 | ✅ | ✅ | Voll unterstützt |
-| Safari | V2 | ⚠️ Cookie-Fallback | ✅ | Eingeschränkt (siehe unten) |
+| Safari | V2 | ✅ | ✅ | Voll unterstützt |
 | Edge | V3 | ✅ | ✅ | Voll unterstützt |
 | Brave | V3 | ✅ | ✅ | Voll unterstützt |
 | Opera | V3 | ✅ | ✅ | Voll unterstützt |
 
 **Hinweis:** Edge, Brave und Opera nutzen den gleichen Chrome-Build (Chromium-basiert).
 
-### ⚠️ Safari-spezifisches Problem: declarativeNetRequest funktioniert nicht
+### ✅ Safari-spezifische Implementierung: `excludedResourceTypes` statt `resourceTypes`
 
-**Status:** Safari 26.1 (und vermutlich frühere Versionen) hat einen kritischen Bug in der `declarativeNetRequest` API.
+**Hintergrund:**
+Safari hatte einen bekannten Bug mit der `declarativeNetRequest` API, bei dem explizite `resourceTypes` Arrays nicht funktionierten. Die Lösung basiert auf der Analyse der erfolgreichen Extension "ChangeTheHeaders" von Jeff Johnson (Underpass App Company).
 
-**Problem:**
-Die `declarativeNetRequest` API in Safari ist grundlegend defekt:
-- Rules werden erfolgreich erstellt (keine Fehler)
-- Rules erscheinen in der Liste (`chrome.declarativeNetRequest.getDynamicRules()`)
-- **Aber:** Rules werden zur Laufzeit NIE angewendet
-- Betrifft ALLE Header-Modifikationen (User-Agent, Accept-Language, X-*, DNT, Accept, etc.)
-- Bug existiert auch mit vereinfachten Single-Wildcard-Rules
+**Die Lösung:**
+Safari verwendet `excludedResourceTypes` statt `resourceTypes`:
 
-**Durchgeführte Tests und Versuche:**
-1. ✅ User-Agent Modifikation mit `modifyHeaders` → Rules erstellt, aber nicht angewendet
-2. ✅ Accept-Language Header Modifikation → Rules erstellt, aber nicht angewendet
-3. ✅ Custom X-OpenPIMS Header → Rules erstellt, aber nicht angewendet
-4. ✅ DNT (Do Not Track) Header → Rules erstellt, aber nicht angewendet
-5. ✅ Accept Header Modifikation → Rules erstellt, aber nicht angewendet
-6. ✅ Vereinfachte Single-Wildcard Rule (`*://*/*`) → Rules erstellt, aber nicht angewendet
-7. ✅ Session Rules statt Dynamic Rules → Gleicher Bug
-8. ✅ Verschiedene Safari Versionen getestet → Bug in allen Versionen
-
-**Implementierte Lösung (Hybrid-Ansatz):**
-
-Wir haben einen browser-spezifischen Fallback implementiert:
-
-**Chrome/Firefox/Edge (bevorzugt):**
-```javascript
-// User-Agent Modifikation via declarativeNetRequest
-User-Agent: Mozilla/5.0... OpenPIMS/2.0 (https://{token}.openpims.de)
-```
-- ✅ DSGVO-optimal: Keine Cookies auf Drittseiten
-- ✅ Keine zusätzlichen Requests
-- ✅ Funktioniert zuverlässig
-
-**Safari (Fallback):**
-```javascript
-// Content Script injiziert First-Party Cookie
-document.cookie = "openpims_url=https://{token}.openpims.de; path=/; max-age=86400; Secure; SameSite=Lax"
-```
-- ✅ Funktioniert trotz Safari Bug
-- ✅ DSGVO-konform: Technisch notwendiges Cookie (§25 Abs. 2 TDDDG)
-- ✅ First-Party Cookie (kein Cross-Site Tracking)
-- ✅ 24h Lebensdauer mit täglicher Rotation
-- ✅ Nutzer hat Extension installiert = implizite Einwilligung
-
-**Server-seitige Integration:**
-Der OpenPIMS-Server muss beide Methoden unterstützen:
-
-```php
-// 1. Priorität: User-Agent (Chrome/Firefox/Edge)
-$userAgent = $_SERVER['HTTP_USER_AGENT'];
-if (preg_match('/OpenPIMS\/[\d.]+\s*\(([^)]*)\)/', $userAgent, $matches)) {
-    $openpims_url = $matches[1];
+```typescript
+// Chrome/Firefox/Edge (klassisch)
+condition: {
+  urlFilter: '*://example.com/*',
+  resourceTypes: ['main_frame']  // Explizit includieren
 }
 
-// 2. Fallback: Cookie (Safari)
-if (empty($openpims_url) && isset($_COOKIE['openpims_url'])) {
-    $openpims_url = $_COOKIE['openpims_url'];
+// Safari (workaround)
+condition: {
+  urlFilter: '*://example.com/*',
+  excludedResourceTypes: [  // Alles AUSSER main_frame excludieren
+    'sub_frame', 'stylesheet', 'script', 'image', 'font',
+    'object', 'xmlhttprequest', 'ping', 'media', 'websocket', 'other'
+  ]
 }
 ```
 
-**Vorteile dieser Lösung:**
-- ✅ Safari-Nutzer können die Extension trotz Browser-Bug verwenden
-- ✅ Identische Token-Generierung (beide Methoden nutzen gleichen HMAC)
-- ✅ Minimaler Code-Overhead (Content Script läuft nur in Safari)
-- ✅ Server bleibt abwärtskompatibel (prüft beide Methoden)
+**Warum es funktioniert:**
+- Safari hat Probleme mit `resourceTypes: ['main_frame', ...]`
+- Aber `excludedResourceTypes: [...]` funktioniert einwandfrei
+- Indem wir alles AUSSER main_frame excludieren, erreichen wir das gleiche Ergebnis
+- Getestet und verifiziert in Safari 26.1 auf macOS
 
-**DSGVO-Konformität des Cookie-Ansatzes:**
-- ✅ Technisch notwendiges Cookie (§25 Abs. 2 TDDDG)
-- ✅ Nutzer hat Extension bewusst installiert = implizite Einwilligung
-- ✅ First-Party Cookie (keine Third-Party Tracking-Problematik)
-- ✅ Datenminimierung: Nur 32-Zeichen Token, keine User-Daten
-- ✅ Speicherbegrenzung: 24h Lebensdauer
-- ✅ SameSite=Lax verhindert Cross-Site Request Forgery
+**Implementierung:**
+Die Extension erkennt automatisch den Browser und verwendet die passende Methode:
 
-**Betroffene Dateien:**
-- `entrypoints/content.ts` - Cookie-Injection für Safari (NEU)
-- `src/core/rules-sync.ts` - Safari-Erkennung mit Early Returns
-- `src/utils/browser.ts` - Browser-Detection
+```typescript
+// src/core/rules-sync.ts
+const isSafari = import.meta.env.BROWSER === 'safari';
+if (isSafari) {
+  condition.excludedResourceTypes = [/* alle außer main_frame */];
+} else {
+  condition.resourceTypes = ['main_frame'];
+}
+```
 
-**Bug Report:**
-Dieser Bug wurde an Apple gemeldet. Bis zu einer Behebung bleibt der Cookie-basierte Fallback die einzige zuverlässige Lösung für Safari-Nutzer.
+**Ergebnis:**
+Alle Browser (Chrome, Firefox, Edge, Safari) verwenden nun identisch User-Agent Modifikation:
+```
+User-Agent: Mozilla/5.0... OpenPIMS/2.0 (https://[32-char-hash].openpims.de)
+```
 
-**Alternative (falls Cookie-Ansatz abgelehnt wird):**
-Die Extension kann für Safari deaktiviert werden, bis Apple den `declarativeNetRequest` Bug behebt. Dies würde jedoch Safari-Nutzer (einschließlich iOS/iPadOS) vollständig ausschließen.
+**Referenzen:**
+- ChangeTheHeaders App Store: https://apps.apple.com/app/changetheheaders/id6738314662
+- Analyse in `CHANGETHEHEADERS_ANALYSIS.md`
+- WebKit Bug Reports: #290922, #293576 (möglicherweise durch neuere Safari-Versionen behoben)
 
 ## Installation für Entwickler
 
