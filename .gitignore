@@ -38,3 +38,7 @@ coverage/
 *.tmp
 *.bak
 *~
+
+# App Store assets (temporary)
+app-store-screenshots/
+generate-screenshot.py
